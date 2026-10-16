@@ -1,0 +1,998 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#fafafa">
+  <title>Nel Jay — Valencia City Business Directory</title>
+
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <!-- Leaflet -->
+  <link
+    rel="stylesheet"
+    href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+  />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+  <style>
+    html {
+      min-width: 320px;
+      scroll-behavior: smooth;
+      -webkit-text-size-adjust: 100%;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI",
+        Roboto, "Helvetica Neue", Arial, sans-serif;
+      -webkit-font-smoothing: antialiased;
+      overflow-x: clip;
+    }
+
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+    }
+
+    .geist-mono {
+      font-family: ui-monospace, SFMono-Regular, "Roboto Mono",
+        Menlo, Monaco, monospace;
+    }
+
+    /* Prevent overflowing content without changing desktop sizing. */
+    main,
+    main > section,
+    #public-profile-content,
+    #owner-banner-container,
+    #owner-offerings-list {
+      min-width: 0;
+    }
+
+    img {
+      max-width: 100%;
+    }
+
+    button,
+    a,
+    select {
+      -webkit-tap-highlight-color: transparent;
+      touch-action: manipulation;
+    }
+
+    input,
+    select,
+    textarea {
+      max-width: 100%;
+      scroll-margin-bottom: 100px;
+    }
+
+    input,
+    textarea {
+      overflow-wrap: anywhere;
+    }
+
+    /* Scrollable navigation without visible scrollbar. */
+    .no-scrollbar {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+
+    .no-scrollbar::-webkit-scrollbar {
+      display: none;
+    }
+
+    /* Leaflet maps need explicit dimensions. */
+    #map,
+    #owner-map {
+      position: relative;
+      width: 100%;
+      z-index: 1;
+    }
+
+    #map {
+      min-height: 320px;
+    }
+
+    #owner-map {
+      min-height: 240px;
+    }
+
+    .leaflet-container {
+      width: 100%;
+      height: 100%;
+      font-family: inherit;
+      background: #f4f4f5;
+    }
+
+    .leaflet-popup-content {
+      overflow-wrap: anywhere;
+    }
+
+    /* Modals remain usable on short screens and with the keyboard open. */
+    #add-offering-modal,
+    #auth-modal {
+      overflow-y: auto;
+      overscroll-behavior: contain;
+      -webkit-overflow-scrolling: touch;
+      padding-top: max(12px, env(safe-area-inset-top));
+      padding-bottom: max(12px, env(safe-area-inset-bottom));
+    }
+
+    #add-offering-modal > div,
+    #auth-modal > div {
+      min-width: 0;
+      max-height: calc(100vh - 24px);
+      max-height: calc(100dvh - 24px);
+      overflow-y: auto;
+      overscroll-behavior: contain;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    /* Mobile-only adjustments.
+       Desktop styles and desktop breakpoints remain unchanged. */
+    @media (max-width: 639px) {
+      main {
+        padding-top: 16px !important;
+        padding-bottom: 24px !important;
+      }
+
+      /* Easier touch targets for the header. */
+      header > div {
+        min-height: 56px;
+      }
+
+      header button {
+        min-height: 40px;
+        min-width: 40px;
+      }
+
+      /* Avoid iOS input zoom while keeping desktop typography unchanged. */
+      #search-input,
+      #category-filter,
+      #tab-content-settings input,
+      #tab-content-settings select,
+      #tab-content-settings textarea,
+      #add-offering-modal input:not([type="checkbox"]),
+      #auth-modal input:not([type="checkbox"]),
+      #auth-modal select,
+      #auth-modal textarea {
+        font-size: 16px;
+      }
+
+      /* Search and category filter occupy their available width. */
+      #search-input {
+        min-width: 0;
+        min-height: 44px;
+        padding-right: 12px;
+      }
+
+      #category-filter {
+        width: 100%;
+        min-height: 44px;
+      }
+
+      /* Category pills can be swiped on narrow screens. */
+      #view-directory > div:nth-child(2) {
+        max-width: 100%;
+        gap: 8px;
+        padding-bottom: 8px;
+        overflow-x: auto;
+        overscroll-behavior-x: contain;
+        -webkit-overflow-scrolling: touch;
+      }
+
+      #view-directory > div:nth-child(2) button {
+        min-height: 36px;
+      }
+
+      /* Keep tabs readable instead of squeezing them together. */
+      #view-directory > div:nth-child(3) {
+        max-width: 100%;
+        overflow-x: auto;
+        overscroll-behavior-x: contain;
+        -webkit-overflow-scrolling: touch;
+      }
+
+      #view-directory > div:nth-child(3) > div {
+        gap: 18px;
+      }
+
+      #view-directory > div:nth-child(3) button {
+        min-height: 42px;
+      }
+
+      /* Owner tabs can scroll horizontally when needed. */
+      #view-owner-portal > div:nth-child(2) {
+        max-width: 100%;
+        overflow-x: auto;
+        overscroll-behavior-x: contain;
+        -webkit-overflow-scrolling: touch;
+      }
+
+      #view-owner-portal > div:nth-child(2) > div {
+        gap: 16px;
+      }
+
+      #view-owner-portal > div:nth-child(2) button {
+        min-height: 42px;
+      }
+
+      /* A comfortable single-column listing on small phones. */
+      #dir-content-businesses,
+      #dir-content-products {
+        grid-template-columns: minmax(0, 1fr);
+        gap: 12px;
+      }
+
+      #dir-content-businesses > *,
+      #dir-content-products > * {
+        min-width: 0;
+      }
+
+      /* Maps fit the available phone screen. */
+      #map {
+        height: 55vh;
+        min-height: 320px;
+        max-height: 480px;
+        border-radius: 8px;
+      }
+
+      #owner-map {
+        height: 260px;
+        min-height: 240px;
+      }
+
+      /* Business settings use less wasted space. */
+      #tab-content-settings {
+        padding: 14px;
+        border-radius: 8px;
+      }
+
+      /* Modals fit the viewport and scroll internally. */
+      #add-offering-modal > div {
+        width: 100%;
+        max-width: 440px;
+        border-radius: 10px;
+        padding: 18px 16px;
+      }
+
+      #auth-modal > div {
+        width: 100%;
+        max-width: 400px;
+        border-radius: 10px;
+        padding: 18px 16px;
+      }
+
+      #add-offering-modal form button,
+      #auth-modal form button,
+      #tab-content-settings form > button {
+        min-height: 42px;
+      }
+
+      /* Toast respects mobile safe areas. */
+      #toast {
+        left: 12px;
+        right: 12px;
+        bottom: max(12px, env(safe-area-inset-bottom));
+        width: auto;
+        max-width: calc(100% - 24px);
+        justify-content: space-between;
+      }
+
+      footer {
+        padding-bottom: max(12px, env(safe-area-inset-bottom));
+      }
+    }
+
+    /* Two-column listings on wider phones, unchanged desktop layout. */
+    @media (min-width: 400px) and (max-width: 639px) {
+      #dir-content-businesses,
+      #dir-content-products {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      html {
+        scroll-behavior: auto;
+      }
+
+      *,
+      *::before,
+      *::after {
+        animation-duration: 0.01ms !important;
+        transition-duration: 0.01ms !important;
+      }
+    }
+  </style>
+</head>
+
+<body class="min-h-screen flex flex-col bg-zinc-50 text-zinc-900 antialiased selection:bg-zinc-900 selection:text-white">
+
+  <!-- HEADER -->
+  <header class="sticky top-0 z-30 bg-white/95 sm:bg-white/90 backdrop-blur-md border-b border-zinc-200">
+    <div class="max-w-5xl mx-auto px-3 sm:px-4 h-14 flex items-center justify-between gap-2">
+
+      <div
+        class="flex items-center gap-2 sm:gap-3 cursor-pointer shrink-0"
+        onclick="switchView('directory')"
+      >
+        <div class="w-5 h-5 bg-black text-white rounded font-bold text-[11px] flex items-center justify-center tracking-tighter shrink-0">
+          ▲
+        </div>
+
+        <span class="font-semibold tracking-tight text-xs text-zinc-900 geist-mono uppercase">
+          Nel Jay
+        </span>
+
+        <span class="hidden sm:inline-block text-[10px] geist-mono text-zinc-400 font-medium px-1.5 py-0.5 rounded bg-zinc-100 border border-zinc-200 whitespace-nowrap">
+          Valencia City
+        </span>
+      </div>
+
+      <div class="flex items-center gap-1 sm:gap-2 shrink-0">
+        <div id="auth-nav-container"></div>
+
+        <button
+          onclick="resetDemoData()"
+          title="Reset Demo Data"
+          aria-label="Reset demo data"
+          class="p-2 text-zinc-400 hover:text-zinc-900 transition-colors cursor-pointer rounded-md hover:bg-zinc-100"
+        >
+          <i data-lucide="rotate-ccw" class="w-4 h-4"></i>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- MAIN -->
+  <main class="flex-1 max-w-5xl w-full mx-auto px-3 sm:px-4 py-4 sm:py-6">
+
+    <!-- TOAST -->
+    <div
+      id="toast"
+      role="status"
+      aria-live="polite"
+      class="hidden fixed bottom-4 right-4 z-50 px-3.5 py-2 bg-zinc-900 text-white rounded-lg text-xs geist-mono font-medium shadow-xl items-center gap-3"
+    >
+      <span id="toast-message">Action complete</span>
+
+      <button
+        onclick="hideToast()"
+        aria-label="Dismiss notification"
+        class="text-zinc-400 hover:text-white cursor-pointer p-1"
+      >
+        <i data-lucide="x" class="w-3.5 h-3.5"></i>
+      </button>
+    </div>
+
+    <!-- 1. PUBLIC DIRECTORY -->
+    <section id="view-directory" class="space-y-4">
+
+      <!-- SEARCH AND CATEGORY -->
+      <div class="flex flex-col sm:flex-row gap-2">
+
+        <div class="relative flex-1 min-w-0">
+          <i
+            data-lucide="search"
+            class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400 pointer-events-none"
+          ></i>
+
+          <input
+            type="text"
+            id="search-input"
+            oninput="handleSearch()"
+            placeholder="Search businesses or products..."
+            aria-label="Search businesses or products in Valencia City"
+            class="w-full min-w-0 pl-9 pr-3 py-2.5 sm:py-1.5 bg-white border border-zinc-200 rounded-md text-base sm:text-xs focus:outline-none focus:border-zinc-900 transition-colors placeholder:text-zinc-400"
+          >
+
+          <span class="hidden sm:inline-block absolute right-2.5 top-1/2 -translate-y-1/2 text-[10px] geist-mono text-zinc-400 bg-zinc-100 px-1 py-0.5 rounded border border-zinc-200">
+            /
+          </span>
+        </div>
+
+        <select
+          id="category-filter"
+          onchange="handleSearch()"
+          aria-label="Filter by category"
+          class="w-full sm:w-auto px-3 py-2 sm:py-1.5 bg-white border border-zinc-200 rounded-md text-xs sm:text-xs focus:outline-none focus:border-zinc-900 cursor-pointer font-medium text-zinc-700"
+        >
+          <option value="">All Categories</option>
+          <option value="Food & Beverage">Food & Beverage</option>
+          <option value="Retail">Retail</option>
+          <option value="Services">Services</option>
+          <option value="Agriculture">Agriculture</option>
+          <option value="Home & Hardware">Home & Hardware</option>
+        </select>
+      </div>
+
+      <!-- CATEGORY PILLS -->
+      <div class="flex items-center gap-1.5 overflow-x-auto pb-2 text-xs no-scrollbar">
+
+        <button
+          onclick="setCategoryPill('')"
+          id="pill-all"
+          class="px-3 py-1.5 rounded-md bg-zinc-900 text-white font-medium text-xs shrink-0 cursor-pointer"
+        >
+          All
+        </button>
+
+        <button
+          onclick="setCategoryPill('Food & Beverage')"
+          id="pill-food"
+          class="px-3 py-1.5 rounded-md bg-white text-zinc-600 border border-zinc-200 hover:bg-zinc-100 font-medium text-xs shrink-0 cursor-pointer whitespace-nowrap"
+        >
+          Food & Beverage
+        </button>
+
+        <button
+          onclick="setCategoryPill('Retail')"
+          id="pill-retail"
+          class="px-3 py-1.5 rounded-md bg-white text-zinc-600 border border-zinc-200 hover:bg-zinc-100 font-medium text-xs shrink-0 cursor-pointer"
+        >
+          Retail
+        </button>
+
+        <button
+          onclick="setCategoryPill('Services')"
+          id="pill-services"
+          class="px-3 py-1.5 rounded-md bg-white text-zinc-600 border border-zinc-200 hover:bg-zinc-100 font-medium text-xs shrink-0 cursor-pointer"
+        >
+          Services
+        </button>
+
+        <button
+          onclick="setCategoryPill('Agriculture')"
+          id="pill-agri"
+          class="px-3 py-1.5 rounded-md bg-white text-zinc-600 border border-zinc-200 hover:bg-zinc-100 font-medium text-xs shrink-0 cursor-pointer"
+        >
+          Agriculture
+        </button>
+
+        <button
+          onclick="setCategoryPill('Home & Hardware')"
+          id="pill-home"
+          class="px-3 py-1.5 rounded-md bg-white text-zinc-600 border border-zinc-200 hover:bg-zinc-100 font-medium text-xs shrink-0 cursor-pointer whitespace-nowrap"
+        >
+          Home & Hardware
+        </button>
+      </div>
+
+      <!-- DIRECTORY TABS -->
+      <div class="flex items-center justify-between border-b border-zinc-200 text-xs font-medium pt-1 overflow-x-auto no-scrollbar">
+        <div class="flex gap-4 shrink-0">
+
+
+          <button
+            onclick="switchDirectoryTab('products')"
+            id="tab-dir-products"
+            class="pb-2 border-b-2 border-transparent text-zinc-400 hover:text-zinc-900 cursor-pointer flex items-center gap-1.5 whitespace-nowrap"
+          >
+            <i data-lucide="package" class="w-3.5 h-3.5 shrink-0"></i>
+            Products & Services
+            <span id="count-products" class="text-[10px] geist-mono text-zinc-400 bg-zinc-100 px-1.5 py-0.5 rounded">
+              0
+            </span>
+          </button>
+
+
+
+          <button
+            onclick="switchDirectoryTab('businesses')"
+            id="tab-dir-businesses"
+            class="pb-2 border-b-2 border-zinc-900 text-zinc-900 font-semibold cursor-pointer flex items-center gap-1.5 whitespace-nowrap"
+          >
+            <i data-lucide="store" class="w-3.5 h-3.5 shrink-0"></i>
+            Businesses
+            <span id="count-businesses" class="text-[10px] geist-mono text-zinc-400 bg-zinc-100 px-1.5 py-0.5 rounded">
+              0
+            </span>
+          </button>
+
+          
+          <button
+            onclick="switchDirectoryTab('map')"
+            id="tab-dir-map"
+            class="pb-2 border-b-2 border-transparent text-zinc-400 hover:text-zinc-900 cursor-pointer flex items-center gap-1.5 whitespace-nowrap"
+          >
+            <i data-lucide="map" class="w-3.5 h-3.5 shrink-0"></i>
+            Map View
+          </button>
+        </div>
+      </div>
+
+      <!-- BUSINESSES -->
+      <div
+        id="dir-content-businesses"
+        class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 pt-1"
+      ></div>
+
+      <!-- PRODUCTS -->
+      <div
+        id="dir-content-products"
+        class="hidden grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 pt-1"
+      ></div>
+
+      <!-- MAP -->
+      <div id="dir-content-map" class="hidden space-y-2 pt-1">
+        <p class="text-[11px] text-zinc-500 geist-mono">
+          Explore business locations across Valencia City.
+        </p>
+
+        <div
+          id="map"
+          class="w-full h-[380px] sm:h-[450px] rounded-lg sm:rounded-xl border border-zinc-200/80 shadow-xs"
+        ></div>
+      </div>
+    </section>
+
+    <!-- 2. PUBLIC BUSINESS PROFILE -->
+    <section id="view-profile" class="hidden space-y-4">
+
+      <button
+        onclick="switchView('directory')"
+        class="inline-flex items-center gap-1.5 text-xs font-medium text-zinc-500 hover:text-zinc-900 transition-colors cursor-pointer min-h-10"
+      >
+        <i data-lucide="arrow-left" class="w-3.5 h-3.5"></i>
+        Back to Directory
+      </button>
+
+      <div id="public-profile-content" class="space-y-4 min-w-0"></div>
+    </section>
+
+    <!-- 3. BUSINESS OWNER DASHBOARD -->
+    <section id="view-owner-portal" class="hidden space-y-4">
+
+      <div id="owner-banner-container"></div>
+
+      <!-- OWNER NAVIGATION -->
+      <div class="flex items-center justify-between border-b border-zinc-200 text-xs font-medium overflow-x-auto no-scrollbar">
+        <div class="flex gap-4 shrink-0">
+
+          <button
+            onclick="switchOwnerTab('products')"
+            id="tab-btn-products"
+            class="pb-2 border-b-2 border-zinc-900 text-zinc-900 font-semibold cursor-pointer flex items-center gap-1.5 whitespace-nowrap"
+          >
+            Items
+          </button>
+
+          <button
+            onclick="switchOwnerTab('settings')"
+            id="tab-btn-settings"
+            class="pb-2 border-b-2 border-transparent text-zinc-400 hover:text-zinc-900 cursor-pointer flex items-center gap-1.5 whitespace-nowrap"
+          >
+            Settings
+          </button>
+        </div>
+
+        <button
+          onclick="openAddOfferingModal()"
+          class="mb-1.5 ml-3 px-3 py-1.5 bg-zinc-900 text-white rounded-md text-xs font-medium hover:bg-zinc-800 transition-colors cursor-pointer flex items-center gap-1.5 geist-mono shrink-0"
+        >
+          <i data-lucide="plus" class="w-3.5 h-3.5"></i>
+          Add Item
+        </button>
+      </div>
+
+      <!-- OWNER PRODUCTS -->
+      <div id="tab-content-products" class="space-y-3">
+
+        <div class="flex items-center justify-between gap-3 text-xs text-zinc-500 geist-mono mt-8">
+          <span>Items</span>
+          <span id="owner-offering-count" class="shrink-0">0 Items</span>
+        </div>
+
+        <div id="owner-offerings-list" class="space-y-2 min-w-0"></div>
+      </div>
+
+      <!-- OWNER SETTINGS -->
+      <div
+        id="tab-content-settings"
+        class="hidden w-full max-w-2xl bg-white p-4 sm:p-5 rounded-lg sm:rounded-xl border border-zinc-200/80 space-y-4"
+      >
+
+        <h2 class="text-xs font-semibold text-zinc-400 uppercase tracking-wider geist-mono">
+          Edit Business Profile & Exact Pin
+        </h2>
+
+        <form onsubmit="handleSaveBusinessDetails(event)" class="space-y-3">
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+
+            <div class="min-w-0">
+              <label for="owner-biz-name" class="block text-[11px] font-medium text-zinc-600 mb-1">
+                Business Name
+              </label>
+
+              <input
+                type="text"
+                id="owner-biz-name"
+                required
+                class="w-full px-2.5 py-2 sm:py-1.5 bg-zinc-50 border border-zinc-200 rounded-md text-xs focus:bg-white focus:outline-none focus:border-zinc-900"
+              >
+            </div>
+
+            <div class="min-w-0">
+              <label for="owner-biz-category" class="block text-[11px] font-medium text-zinc-600 mb-1">
+                Category
+              </label>
+
+              <select
+                id="owner-biz-category"
+                class="w-full px-2 py-2 sm:py-1.5 bg-zinc-50 border border-zinc-200 rounded-md text-xs focus:bg-white"
+              >
+                <option>Food & Beverage</option>
+                <option>Retail</option>
+                <option>Services</option>
+                <option>Agriculture</option>
+                <option>Home & Hardware</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+
+            <div class="min-w-0">
+              <label for="owner-biz-barangay" class="block text-[11px] font-medium text-zinc-600 mb-1">
+                Barangay / Landmark
+              </label>
+
+              <input
+                type="text"
+                id="owner-biz-barangay"
+                required
+                class="w-full px-2.5 py-2 sm:py-1.5 bg-zinc-50 border border-zinc-200 rounded-md text-xs focus:bg-white focus:outline-none focus:border-zinc-900"
+              >
+            </div>
+
+            <div class="min-w-0">
+              <label for="owner-biz-contact" class="block text-[11px] font-medium text-zinc-600 mb-1">
+                Contact Number
+              </label>
+
+              <input
+                type="text"
+                id="owner-biz-contact"
+                required
+                class="w-full px-2.5 py-2 sm:py-1.5 bg-zinc-50 border border-zinc-200 rounded-md text-xs focus:bg-white focus:outline-none focus:border-zinc-900"
+              >
+            </div>
+          </div>
+
+          <div>
+            <label for="owner-biz-desc" class="block text-[11px] font-medium text-zinc-600 mb-1">
+              Description
+            </label>
+
+            <textarea
+              id="owner-biz-desc"
+              rows="3"
+              required
+              class="w-full px-2.5 py-2 sm:py-1.5 bg-zinc-50 border border-zinc-200 rounded-md text-xs focus:bg-white focus:outline-none focus:border-zinc-900"
+            ></textarea>
+          </div>
+
+          <!-- MAP PIN PICKER -->
+          <div class="space-y-1.5 pt-2">
+
+            <label class="block text-[11px] font-medium text-zinc-600">
+              Pin Exact Location on Map
+              <span class="text-zinc-400 font-normal">
+                (Tap map to move pin)
+              </span>
+            </label>
+
+            <div
+              id="owner-map"
+              class="w-full h-[260px] sm:h-[280px] rounded-lg border border-zinc-200"
+            ></div>
+
+            <div class="flex flex-wrap gap-x-4 gap-y-1 text-[10px] geist-mono text-zinc-500 pt-1">
+              <span>
+                Latitude:
+                <strong id="lat-display">7.9050</strong>
+              </span>
+
+              <span>
+                Longitude:
+                <strong id="lng-display">125.0940</strong>
+              </span>
+            </div>
+          </div>
+
+          <button
+            type="submit"
+            class="w-full py-2.5 sm:py-1.5 bg-zinc-900 text-white rounded-md text-xs font-medium hover:bg-zinc-800 transition-colors cursor-pointer geist-mono"
+          >
+            Save Profile & Pin
+          </button>
+        </form>
+      </div>
+    </section>
+  </main>
+
+  <!-- ADD OFFERING MODAL -->
+  <div
+    id="add-offering-modal"
+    class="hidden fixed inset-0 z-50 bg-zinc-900/40 sm:backdrop-blur-xs flex items-center justify-center p-3 sm:p-4"
+  >
+    <div class="bg-white max-w-sm w-full rounded-lg sm:rounded-xl border border-zinc-200 p-4 sm:p-5 space-y-3 shadow-2xl relative">
+
+      <button
+        type="button"
+        onclick="closeAddOfferingModal()"
+        aria-label="Close modal"
+        class="absolute right-3 top-3 text-zinc-400 hover:text-zinc-900 cursor-pointer p-2"
+      >
+        <i data-lucide="x" class="w-4 h-4"></i>
+      </button>
+
+      <h2 class="pr-8 text-xs font-semibold text-zinc-900 geist-mono uppercase tracking-wider">
+        Add Product or Service
+      </h2>
+
+      <form onsubmit="handleAddOffering(event)" class="space-y-3">
+
+        <div>
+          <label for="off-name" class="block text-[11px] font-medium text-zinc-600 mb-1">
+            Title
+          </label>
+
+          <input
+            type="text"
+            id="off-name"
+            required
+            placeholder="Item title"
+            class="w-full px-2.5 py-2 sm:py-1.5 bg-zinc-50 border border-zinc-200 rounded-md text-xs focus:bg-white focus:outline-none focus:border-zinc-900"
+          >
+        </div>
+
+        <div>
+          <label for="off-price" class="block text-[11px] font-medium text-zinc-600 mb-1">
+            Price (₱)
+          </label>
+
+          <input
+            type="number"
+            id="off-price"
+            min="0"
+            step="0.01"
+            required
+            placeholder="0.00"
+            class="w-full px-2.5 py-2 sm:py-1.5 bg-zinc-50 border border-zinc-200 rounded-md text-xs focus:bg-white focus:outline-none focus:border-zinc-900"
+          >
+        </div>
+
+        <div>
+          <label for="off-desc" class="block text-[11px] font-medium text-zinc-600 mb-1">
+            Description
+          </label>
+
+          <input
+            type="text"
+            id="off-desc"
+            required
+            placeholder="Short description"
+            class="w-full px-2.5 py-2 sm:py-1.5 bg-zinc-50 border border-zinc-200 rounded-md text-xs focus:bg-white focus:outline-none focus:border-zinc-900"
+          >
+        </div>
+
+        <div>
+          <label for="off-file" class="block text-[11px] font-medium text-zinc-600 mb-1">
+            Product Image File
+          </label>
+
+          <input
+            type="file"
+            id="off-file"
+            accept="image/*"
+            required
+            class="w-full min-w-0 text-xs text-zinc-500 file:mr-2 file:py-2 file:px-2 file:rounded file:border-0 file:text-xs file:font-medium file:bg-zinc-100 file:text-zinc-800 cursor-pointer"
+          >
+        </div>
+
+        <div class="flex items-center pt-1">
+          <label for="off-public" class="flex items-center gap-2 cursor-pointer py-1">
+            <input
+              type="checkbox"
+              id="off-public"
+              checked
+              class="w-4 h-4 rounded border-zinc-300 text-zinc-900"
+            >
+            <span class="text-xs font-medium text-zinc-700">
+              Make Publicly Visible
+            </span>
+          </label>
+        </div>
+
+        <div class="pt-2 flex flex-col-reverse sm:flex-row justify-end gap-2">
+
+          <button
+            type="button"
+            onclick="closeAddOfferingModal()"
+            class="px-3.5 py-2 sm:py-1.5 border border-zinc-200 hover:bg-zinc-100 text-zinc-600 rounded-md text-xs font-medium cursor-pointer"
+          >
+            Cancel
+          </button>
+
+          <button
+            type="submit"
+            class="px-4 py-2 sm:py-1.5 bg-zinc-900 text-white rounded-md text-xs font-medium hover:bg-zinc-800 transition-colors cursor-pointer geist-mono"
+          >
+            Save Item
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- AUTH MODAL -->
+  <div
+    id="auth-modal"
+    class="hidden fixed inset-0 z-50 bg-zinc-900/40 sm:backdrop-blur-xs flex items-center justify-center p-3 sm:p-4"
+  >
+    <div class="bg-white max-w-xs w-full rounded-lg sm:rounded-xl border border-zinc-200 p-4 sm:p-5 space-y-4 shadow-2xl relative">
+
+      <button
+        type="button"
+        onclick="closeAuthModal()"
+        aria-label="Close modal"
+        class="absolute right-3 top-3 text-zinc-400 hover:text-zinc-900 cursor-pointer p-2"
+      >
+        <i data-lucide="x" class="w-4 h-4"></i>
+      </button>
+
+      <!-- AUTH TABS -->
+      <div class="flex border-b border-zinc-200 gap-3 text-xs font-medium pr-8">
+
+        <button
+          type="button"
+          onclick="switchAuthTab('login')"
+          id="tab-login"
+          class="pb-1.5 border-b-2 border-zinc-900 text-zinc-900 cursor-pointer"
+        >
+          Sign In
+        </button>
+
+        <button
+          type="button"
+          onclick="switchAuthTab('signup')"
+          id="tab-signup"
+          class="pb-1.5 border-b-2 border-transparent text-zinc-400 hover:text-zinc-900 cursor-pointer"
+        >
+          Register
+        </button>
+      </div>
+
+      <!-- LOGIN -->
+      <form id="form-login" onsubmit="handleLogin(event)" class="space-y-3">
+
+        <div>
+          <label for="login-biz-select" class="block text-[11px] font-medium text-zinc-600 mb-1">
+            Select Business
+          </label>
+
+          <select
+            id="login-biz-select"
+            class="w-full px-2.5 py-2 sm:py-1.5 bg-zinc-50 border border-zinc-200 rounded-md text-xs focus:bg-white focus:outline-none"
+          ></select>
+        </div>
+
+        <button
+          type="submit"
+          class="w-full py-2.5 sm:py-1.5 bg-zinc-900 text-white text-xs font-medium rounded-md hover:bg-zinc-800 transition-colors cursor-pointer geist-mono"
+        >
+          Enter Dashboard
+        </button>
+      </form>
+
+      <!-- REGISTER -->
+      <form
+        id="form-signup"
+        onsubmit="handleRegisterBusiness(event)"
+        class="hidden space-y-3"
+      >
+
+        <div>
+          <label for="reg-name" class="block text-[11px] font-medium text-zinc-600 mb-1">
+            Business Name
+          </label>
+
+          <input
+            type="text"
+            id="reg-name"
+            required
+            placeholder="Business Name"
+            class="w-full px-2.5 py-2 sm:py-1.5 bg-zinc-50 border border-zinc-200 rounded-md text-xs focus:bg-white focus:outline-none"
+          >
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+
+          <div class="min-w-0">
+            <label for="reg-category" class="block text-[11px] font-medium text-zinc-600 mb-1">
+              Category
+            </label>
+
+            <select
+              id="reg-category"
+              class="w-full px-2 py-2 sm:py-1.5 bg-zinc-50 border border-zinc-200 rounded-md text-xs focus:bg-white"
+            >
+              <option>Food & Beverage</option>
+              <option>Retail</option>
+              <option>Services</option>
+              <option>Agriculture</option>
+              <option>Home & Hardware</option>
+            </select>
+          </div>
+
+          <div class="min-w-0">
+            <label for="reg-barangay" class="block text-[11px] font-medium text-zinc-600 mb-1">
+              Location
+            </label>
+
+            <input
+              type="text"
+              id="reg-barangay"
+              required
+              placeholder="Location"
+              class="w-full px-2.5 py-2 sm:py-1.5 bg-zinc-50 border border-zinc-200 rounded-md text-xs focus:bg-white"
+            >
+          </div>
+        </div>
+
+        <div>
+          <label for="reg-contact" class="block text-[11px] font-medium text-zinc-600 mb-1">
+            Contact Number
+          </label>
+
+          <input
+            type="tel"
+            id="reg-contact"
+            required
+            placeholder="0917-xxx-xxxx"
+            class="w-full px-2.5 py-2 sm:py-1.5 bg-zinc-50 border border-zinc-200 rounded-md text-xs focus:bg-white"
+          >
+        </div>
+
+        <div>
+          <label for="reg-desc" class="block text-[11px] font-medium text-zinc-600 mb-1">
+            Description
+          </label>
+
+          <textarea
+            id="reg-desc"
+            rows="3"
+            required
+            placeholder="Short description"
+            class="w-full px-2.5 py-2 sm:py-1.5 bg-zinc-50 border border-zinc-200 rounded-md text-xs focus:bg-white"
+          ></textarea>
+        </div>
+
+        <button
+          type="submit"
+          class="w-full py-2.5 sm:py-1.5 bg-zinc-900 text-white text-xs font-medium rounded-md hover:bg-zinc-800 transition-colors cursor-pointer geist-mono"
+        >
+          Create Account
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- FOOTER -->
+  <footer class="border-t border-zinc-200 bg-white py-3 px-4 text-center text-[11px] text-zinc-400 geist-mono">
+    Nel Jay Business Directory &bull; Valencia City, Bukidnon
+  </footer>
+
+  <!-- Separate application logic: unchanged -->
+  <script src="app.js"></script>
+</body>
+</html>
